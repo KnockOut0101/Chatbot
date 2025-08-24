@@ -7,6 +7,11 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
 // import { OpenAIEmbeddings } from "@langchain/openai";
 import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
 import { createClient } from '@supabase/supabase-js'
+import { ChatOllama } from "@langchain/ollama";
+import { queries } from '@testing-library/dom';
+
+
+
 function App() {
   useEffect(() => {
     document.addEventListener('submit', (e) => {
@@ -117,14 +122,36 @@ if (userInput && chatbotConversation) {
   newHumanSpeechBubble.textContent = question;
   chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
 
-  // add AI message
-  const newAiSpeechBubble = document.createElement('div');
-  newAiSpeechBubble.classList.add('speech', 'speech-ai');
-  chatbotConversation.appendChild(newAiSpeechBubble);
-  // Replace 'aiResponse' with your actual AI response variable
-  
-  newAiSpeechBubble.textContent = ''; // Placeholder for AI response
-  chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+  // Prepare for AI response
+  const llm = new ChatOllama({
+    model: "gemma3n:e4b",
+    temperature: 0,
+    maxRetries: 2,
+  });
+
+  try {
+    const aiMsg = await llm.invoke([
+      [
+        "system",
+        "You are a helpful assistant that translates English to French. Translate the user sentence.\n" + question,
+      ],
+    ]);
+
+    // Add AI message bubble only after receiving response
+    const newAiSpeechBubble = document.createElement('div');
+    newAiSpeechBubble.classList.add('speech', 'speech-ai');
+    newAiSpeechBubble.textContent = String(aiMsg.content);
+    chatbotConversation.appendChild(newAiSpeechBubble);
+    chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+  } 
+  catch (err) {
+    // Optionally handle error and show error bubble
+    const errorBubble = document.createElement('div');
+    errorBubble.classList.add('speech', 'speech-ai');
+    errorBubble.textContent = "Sorry, I couldn't process your request.";
+    chatbotConversation.appendChild(errorBubble);
+    chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+  }
 }
 
 }
