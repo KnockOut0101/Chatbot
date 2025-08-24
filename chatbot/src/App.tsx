@@ -9,28 +9,46 @@ import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase"
 import { createClient } from '@supabase/supabase-js'
 function App() {
   useEffect(() => {
-    textparser();
+    document.addEventListener('submit', (e) => {
+    e.preventDefault()
+    progressConversation()
+    })
+    // textparser(); //ONLY CALL IT TO VECTORIZE REFERNCE TEXT
   }, []);
 
   
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+  <div>
+    {/* The following tags are not valid in JSX and should be placed in public/index.html */}
+    {/* <title>Scrimba Chatbot</title>
+    <link rel="stylesheet" href="index.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins&family=Roboto&display=swap" rel="stylesheet" /> */}
+
+    <div>
+      <section className="chatbot-container">
+        <div className="chatbot-header">
+          <img src="images/logo-scrimba.svg" className="logo" />
+          <p className="sub-heading">Knowledge Bank</p>
+        </div>
+        <div className="chatbot-conversation-container" id="chatbot-conversation-container">
+        </div>
+        <form id="form" className="chatbot-input-container">
+          <input name="user-input" type="text" id="user-input" required />
+          <button id="submit-btn" className="submit-btn">
+            <img
+              src="images/send.svg"
+              className="send-btn-icon"
+              alt="Send"
+            />
+          </button>
+        </form>
+      </section>
+      {/* <script src="index.js" type="module"></script> */}
     </div>
+  </div>
   );
 }
 
@@ -81,6 +99,34 @@ async function textparser() {
   catch (err) {
     console.log(err)
   }
+}
+
+async function progressConversation() {
+    // ...existing code...
+const userInput = document.getElementById('user-input') as HTMLInputElement | null;
+const chatbotConversation = document.getElementById('chatbot-conversation-container');
+
+if (userInput && chatbotConversation) {
+  const question = userInput.value;
+  userInput.value = '';
+
+  // add human message
+  const newHumanSpeechBubble = document.createElement('div');
+  newHumanSpeechBubble.classList.add('speech', 'speech-human');
+  chatbotConversation.appendChild(newHumanSpeechBubble);
+  newHumanSpeechBubble.textContent = question;
+  chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+
+  // add AI message
+  const newAiSpeechBubble = document.createElement('div');
+  newAiSpeechBubble.classList.add('speech', 'speech-ai');
+  chatbotConversation.appendChild(newAiSpeechBubble);
+  // Replace 'aiResponse' with your actual AI response variable
+  
+  newAiSpeechBubble.textContent = ''; // Placeholder for AI response
+  chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+}
+
 }
 
 export default App;
