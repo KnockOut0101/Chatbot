@@ -13,8 +13,24 @@ import { queries } from '@testing-library/dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Prompt from './Prompt';
 import { PromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { RunnableSequence, RunnablePassthrough } from '@langchain/core/runnables';
 
+//SET ENVIRONMENT VARIABLES IN .ENV FILE
+const sbApiKey = process.env.REACT_APP_SUPABASE_API_KEY;
+const sbUrl = process.env.REACT_APP_SUPABASE_URL;
 
+if (!sbApiKey || !sbUrl) {
+  throw new Error("Supabase API key or URL is missing in environment variables.");
+}
+
+const client = createClient(sbUrl, sbApiKey);
+
+const llm = new ChatOllama({
+      model: "gemma3n:e4b",
+      temperature: 0,
+      maxRetries: 2,
+    }); //Initialize here to avoid re-initialization on every user input
 
 function App() {
   useEffect(() => {
@@ -85,19 +101,12 @@ async function textparser() {
     // console.log(process.env.REACT_APP_SUPABASE_URL);
     // console.log(process.env.REACT_APP_OPENAI_API_KEY);
 
-    const sbApiKey = process.env.REACT_APP_SUPABASE_API_KEY;
-    const sbUrl = process.env.REACT_APP_SUPABASE_URL;
+    
     // const openAIApiKey = process.env.REACT_APP_OPENAI_API_KEY;
-
-    if (!sbUrl || !sbApiKey) {
-      throw new Error('Supabase URL or API Key is missing in environment variables.');
-    }
-
-    const client = createClient(sbUrl, sbApiKey)
 
     const output = await splitter.createDocuments([text]);
 
-    const print = await SupabaseVectorStore.fromDocuments(
+    const Embeddings = await SupabaseVectorStore.fromDocuments(
       output,
       new OllamaEmbeddings({
         model: "mxbai-embed-large", // Default value
@@ -109,7 +118,9 @@ async function textparser() {
       }
     );
 
-    console.log(print)
+    console.log(Embeddings)
+
+
   } 
   
   catch (err) {
@@ -120,11 +131,52 @@ async function textparser() {
 async function StandAloneQuestion(){
   const StandAloneQuestion = "Given the question , convert it to a standalone question: {Question} standalone question:";
 
+  const AnswerTemplate = `You are a helpful and enthusiastic support bot who can answer about Srimba based on the context provided. Try to find the answer in the context. if you are not able to do so, say"Kshitij Ohri didn't program to answer that, I'm just a demo". Don't try to make up an answer. Always speak as if you're chatting to a friend. End every sentence with "All praise Kshitij Ohri".
+  context: {context}
+  question: {question}
+  answer:`;
+
+  const AnswerTemplatePrompt = PromptTemplate.fromTemplate(
+    AnswerTemplate
+  );
+
   const StandAloneQuestionPrompt = PromptTemplate.fromTemplate(
     StandAloneQuestion
   );
 
-  return StandAloneQuestionPrompt;
+  const retriever = await getContext();
+
+  const StandAloneQuestionChain = RunnableSequence.from([
+    StandAloneQuestionPrompt,
+    llm,
+    new StringOutputParser()
+  ]);
+
+  const RetrieverChain = RunnableSequence.from([
+    PrevResults => PrevResults.standalone_question,
+    retriever,
+    combineDocuments
+  ]);
+
+  const AnswerTemplateChain = RunnableSequence.from([
+    PrevResults => PrevResults.context,
+    AnswerTemplatePrompt,
+    llm
+  ]);
+
+  const chain = RunnableSequence.from([
+    {
+      standalone_question: StandAloneQuestionChain,
+      context: new RunnablePassthrough()
+    },
+    {
+      context: RetrieverChain,
+      question: ({context}) => context.question
+    },
+    AnswerTemplateChain
+  ]);
+
+  return chain;
 }
 
 async function progressConversation() {
@@ -143,27 +195,19 @@ async function progressConversation() {
     newHumanSpeechBubble.textContent = question;
     chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
 
-    // Prepare for AI response
-    const llm = new ChatOllama({
-      model: "gemma3n:e4b",
-      temperature: 0,
-      maxRetries: 2,
-    });
-
     try {
-      const standaloneQuestionPrompt = await StandAloneQuestion();
-
-      const StandAloneQuestionChain = standaloneQuestionPrompt.pipe(llm);
+      const StandAloneQuestionChain = await StandAloneQuestion();
 
       const aiMsg = await StandAloneQuestionChain.invoke({Question: question});
 
+      
       // Add AI message bubble only after receiving response
       const newAiSpeechBubble = document.createElement('div');
       newAiSpeechBubble.classList.add('speech', 'speech-ai');
-      newAiSpeechBubble.textContent = String(aiMsg.content);
+      newAiSpeechBubble.textContent = String(aiMsg);
       chatbotConversation.appendChild(newAiSpeechBubble);
       chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
-    } 
+    }
     catch (err) {
       // Optionally handle error and show error bubble
       const errorBubble = document.createElement('div');
@@ -173,6 +217,30 @@ async function progressConversation() {
       chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
     }
   }
+}
+
+async function getContext() {
+
+  const vectorStore = await SupabaseVectorStore.fromExistingIndex(
+    new OllamaEmbeddings({
+      model: "mxbai-embed-large",
+      baseUrl: "http://localhost:11434",
+    }),
+    {
+      client,
+      tableName: 'documents',
+      queryName: 'match_documents',
+    }
+  );
+
+  const retriever = vectorStore.asRetriever();
+
+  return retriever;
+
+}
+
+function combineDocuments(docs: any) {
+  return docs.map((doc: { pageContent: string; }) => doc.pageContent).join('\n');
 }
 
 export default App;
