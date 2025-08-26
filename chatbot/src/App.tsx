@@ -11,6 +11,8 @@ import { createClient } from '@supabase/supabase-js'
 import { ChatOllama } from "@langchain/ollama";
 import { queries } from '@testing-library/dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import Prompt from './Prompt';
+import { PromptTemplate } from "@langchain/core/prompts";
 
 
 
@@ -57,7 +59,10 @@ function App() {
       {/* <script src="index.js" type="module"></script> */}
     </div>
     {/* <div>
-      <Modal />
+      <Prompt /> Trying out to print template, enable only for hit and trial
+    </div> */}
+    {/* <div>
+      <Modal /> Trying out Modal-work related to React-Bootstrap
     </div> */}
   </div>
   );
@@ -112,6 +117,16 @@ async function textparser() {
   }
 }
 
+async function StandAloneQuestion(){
+  const StandAloneQuestion = "Given the question , convert it to a standalone question: {Question} standalone question:";
+
+  const StandAloneQuestionPrompt = PromptTemplate.fromTemplate(
+    StandAloneQuestion
+  );
+
+  return StandAloneQuestionPrompt;
+}
+
 async function progressConversation() {
     // ...existing code...
   const userInput = document.getElementById('user-input') as HTMLInputElement | null;
@@ -136,12 +151,11 @@ async function progressConversation() {
     });
 
     try {
-      const aiMsg = await llm.invoke([
-        [
-          "system",
-          "You are a helpful assistant that translates English to French. Translate the user sentence.\n" + question,
-        ],
-      ]);
+      const standaloneQuestionPrompt = await StandAloneQuestion();
+
+      const StandAloneQuestionChain = standaloneQuestionPrompt.pipe(llm);
+
+      const aiMsg = await StandAloneQuestionChain.invoke({Question: question});
 
       // Add AI message bubble only after receiving response
       const newAiSpeechBubble = document.createElement('div');
