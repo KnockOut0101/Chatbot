@@ -114,52 +114,51 @@ async function textparser() {
 
 async function progressConversation() {
     // ...existing code...
-const userInput = document.getElementById('user-input') as HTMLInputElement | null;
-const chatbotConversation = document.getElementById('chatbot-conversation-container');
+  const userInput = document.getElementById('user-input') as HTMLInputElement | null;
+  const chatbotConversation = document.getElementById('chatbot-conversation-container');
 
-if (userInput && chatbotConversation) {
-  const question = userInput.value;
-  userInput.value = '';
+  if (userInput && chatbotConversation) {
+    const question = userInput.value;
+    userInput.value = '';
 
-  // add human message
-  const newHumanSpeechBubble = document.createElement('div');
-  newHumanSpeechBubble.classList.add('speech', 'speech-human');
-  chatbotConversation.appendChild(newHumanSpeechBubble);
-  newHumanSpeechBubble.textContent = question;
-  chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
-
-  // Prepare for AI response
-  const llm = new ChatOllama({
-    model: "gemma3n:e4b",
-    temperature: 0,
-    maxRetries: 2,
-  });
-
-  try {
-    const aiMsg = await llm.invoke([
-      [
-        "system",
-        "You are a helpful assistant that translates English to French. Translate the user sentence.\n" + question,
-      ],
-    ]);
-
-    // Add AI message bubble only after receiving response
-    const newAiSpeechBubble = document.createElement('div');
-    newAiSpeechBubble.classList.add('speech', 'speech-ai');
-    newAiSpeechBubble.textContent = String(aiMsg.content);
-    chatbotConversation.appendChild(newAiSpeechBubble);
+    // add human message
+    const newHumanSpeechBubble = document.createElement('div');
+    newHumanSpeechBubble.classList.add('speech', 'speech-human');
+    chatbotConversation.appendChild(newHumanSpeechBubble);
+    newHumanSpeechBubble.textContent = question;
     chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
-  } 
-  catch (err) {
-    // Optionally handle error and show error bubble
-    const errorBubble = document.createElement('div');
-    errorBubble.classList.add('speech', 'speech-ai');
-    errorBubble.textContent = "Sorry, I couldn't process your request.";
-    chatbotConversation.appendChild(errorBubble);
-    chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+
+    // Prepare for AI response
+    const llm = new ChatOllama({
+      model: "gemma3n:e4b",
+      temperature: 0,
+      maxRetries: 2,
+    });
+
+    try {
+      const aiMsg = await llm.invoke([
+        [
+          "system",
+          "You are a helpful assistant that translates English to French. Translate the user sentence.\n" + question,
+        ],
+      ]);
+
+      // Add AI message bubble only after receiving response
+      const newAiSpeechBubble = document.createElement('div');
+      newAiSpeechBubble.classList.add('speech', 'speech-ai');
+      newAiSpeechBubble.textContent = String(aiMsg.content);
+      chatbotConversation.appendChild(newAiSpeechBubble);
+      chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+    } 
+    catch (err) {
+      // Optionally handle error and show error bubble
+      const errorBubble = document.createElement('div');
+      errorBubble.classList.add('speech', 'speech-ai');
+      errorBubble.textContent = "Sorry, I couldn't process your request.";
+      chatbotConversation.appendChild(errorBubble);
+      chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
+    }
   }
-}
-
 }
 
 export default App;
