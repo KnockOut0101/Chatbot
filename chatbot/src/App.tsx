@@ -1,4 +1,5 @@
 import React, {useEffect} from 'react';
+import Modal from './Modal';
 import logo from './logo.svg';
 import './App.css';
 import { Ollama } from "@langchain/ollama";
@@ -9,6 +10,7 @@ import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase"
 import { createClient } from '@supabase/supabase-js'
 import { ChatOllama } from "@langchain/ollama";
 import { queries } from '@testing-library/dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 
 
@@ -36,8 +38,8 @@ function App() {
     <div>
       <section className="chatbot-container">
         <div className="chatbot-header">
-          <img src="images/logo-scrimba.svg" className="logo" />
-          <p className="sub-heading">Knowledge Bank</p>
+          {/* <img src="images/logo-scrimba.svg" className="logo" /> */}
+          <p className="sub-heading">Chatbot</p>
         </div>
         <div className="chatbot-conversation-container" id="chatbot-conversation-container">
         </div>
@@ -54,6 +56,9 @@ function App() {
       </section>
       {/* <script src="index.js" type="module"></script> */}
     </div>
+    {/* <div>
+      <Modal />
+    </div> */}
   </div>
   );
 }
