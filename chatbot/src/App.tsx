@@ -32,6 +32,8 @@ const llm = new ChatOllama({
       maxRetries: 2,
     }); //Initialize here to avoid re-initialization on every user input
 
+const convHistory: string[] = []
+
 function App() {
   useEffect(() => {
     document.addEventListener('submit', (e) => {
@@ -129,58 +131,71 @@ async function textparser() {
 }
 
 async function StandAloneQuestion(){
-  const StandAloneQuestion = "Given the question , convert it to a standalone question: {Question} standalone question:";
+  const StandAloneQuestionTemplate = `Given some conversation history (if any) and a question, convert the question to a standalone question. 
+  conversation history: {conv_history}
+  question: {question} 
+  standalone question:`;
 
-  const AnswerTemplate = `You are a helpful and enthusiastic support bot who can answer about Srimba based on the context provided. Try to find the answer in the context. if you are not able to do so, say"Kshitij Ohri didn't program to answer that, I'm just a demo". Don't try to make up an answer. Always speak as if you're chatting to a friend. End every sentence with "All praise Kshitij Ohri".
+  const AnswerTemplate = `You are a helpful and enthusiastic support bot who can answer about Scrimba based on the context provided.
+  Try to find the answer in the context.
+  If you are not able to do so, say "Kshitij Ohri didn't program me to answer that, I'm just a demo".
+  Don't try to make up an answer. Always speak as if you're chatting to a friend.
   context: {context}
   question: {question}
   answer:`;
 
-  const AnswerTemplatePrompt = PromptTemplate.fromTemplate(
-    AnswerTemplate
+  const StandAloneQuestionPrompt = PromptTemplate.fromTemplate(
+    StandAloneQuestionTemplate
   );
 
-  const StandAloneQuestionPrompt = PromptTemplate.fromTemplate(
-    StandAloneQuestion
-  );
+  const AnswerPrompt = PromptTemplate.fromTemplate(AnswerTemplate);
 
   const retriever = await getContext();
 
-  const StandAloneQuestionChain = RunnableSequence.from([
+  const standaloneQuestionChain = RunnableSequence.from([
+    {
+      question: (input: { question: string; conv_history: string }) => input.question,
+      conv_history: (input: { question: string; conv_history: string }) => input.conv_history,
+    },
     StandAloneQuestionPrompt,
     llm,
-    new StringOutputParser()
+    new StringOutputParser(),
   ]);
 
-  const RetrieverChain = RunnableSequence.from([
-    PrevResults => PrevResults.standalone_question,
+  const retrieverChain = RunnableSequence.from([
+    (prevResult) => prevResult.standalone_question,
     retriever,
-    combineDocuments
+    combineDocuments,
   ]);
 
-  const AnswerTemplateChain = RunnableSequence.from([
-    PrevResults => PrevResults.context,
-    AnswerTemplatePrompt,
-    llm
-  ]);
-
-  const chain = RunnableSequence.from([
+  const answerChain = RunnableSequence.from([
     {
-      standalone_question: StandAloneQuestionChain,
-      context: new RunnablePassthrough()
+      context: retrieverChain,
+      question: (input) => input.standalone_question,
+    },
+    AnswerPrompt,
+    llm,
+    new StringOutputParser(),
+  ]);
+
+  const conversationalRetrievalChain = RunnableSequence.from([
+    {
+      standalone_question: standaloneQuestionChain,
+      original_input: new RunnablePassthrough(),
     },
     {
-      context: RetrieverChain,
-      question: ({context}) => context.question
+      context: retrieverChain,
+      question: ({ original_input }) => original_input.question,
     },
-    AnswerTemplateChain
+    AnswerPrompt,
+    llm,
+    new StringOutputParser(),
   ]);
 
-  return chain;
+  return conversationalRetrievalChain;
 }
-
 async function progressConversation() {
-    // ...existing code...
+    
   const userInput = document.getElementById('user-input') as HTMLInputElement | null;
   const chatbotConversation = document.getElementById('chatbot-conversation-container');
 
@@ -196,11 +211,17 @@ async function progressConversation() {
     chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
 
     try {
-      const StandAloneQuestionChain = await StandAloneQuestion();
+      const chain = await StandAloneQuestion();
 
-      const aiMsg = await StandAloneQuestionChain.invoke({Question: question});
-
+      // Use lowercase 'question' to match the prompt template
+      const aiMsg = await chain.invoke({
+        question: question,
+        conv_history: formatConvHistory(convHistory)
+      });
       
+      convHistory.push(question)
+      convHistory.push(aiMsg)
+
       // Add AI message bubble only after receiving response
       const newAiSpeechBubble = document.createElement('div');
       newAiSpeechBubble.classList.add('speech', 'speech-ai');
@@ -209,6 +230,7 @@ async function progressConversation() {
       chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
     }
     catch (err) {
+      console.error(err); // Log the full error for debugging
       // Optionally handle error and show error bubble
       const errorBubble = document.createElement('div');
       errorBubble.classList.add('speech', 'speech-ai');
@@ -237,6 +259,16 @@ async function getContext() {
 
   return retriever;
 
+}
+
+function formatConvHistory(messages: any[]) {
+    return messages.map((message, i) => {
+        if (i % 2 === 0){
+            return `Human: ${message}`
+        } else {
+            return `AI: ${message}`
+        }
+    }).join('\n')
 }
 
 function combineDocuments(docs: any) {
