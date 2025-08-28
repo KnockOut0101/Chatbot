@@ -136,13 +136,11 @@ async function StandAloneQuestion(){
   question: {question} 
   standalone question:`;
 
-  const AnswerTemplate = `You are a helpful and enthusiastic support bot who can answer about Scrimba based on the context provided.
-  Try to find the answer in the context.
-  If you are not able to do so, say "Kshitij Ohri didn't program me to answer that, I'm just a demo".
-  Don't try to make up an answer. Always speak as if you're chatting to a friend.
+  const AnswerTemplate = `You are a helpful and enthusiastic support bot who can answer a given question about Scrimba based on the context provided and the conversation history. Try to find the answer in the context. If the answer is not given in the context, find the answer in the conversation history if possible. If you really don't know the answer, say "I'm sorry, I don't know the answer to that." And direct the questioner to email help@scrimba.com. Don't try to make up an answer. Always speak as if you were chatting to a friend.
   context: {context}
+  conversation history: {conv_history}
   question: {question}
-  answer:`;
+  answer: `;
 
   const StandAloneQuestionPrompt = PromptTemplate.fromTemplate(
     StandAloneQuestionTemplate
@@ -186,6 +184,7 @@ async function StandAloneQuestion(){
     {
       context: retrieverChain,
       question: ({ original_input }) => original_input.question,
+      conv_history: ({ original_input }) => original_input.conv_history
     },
     AnswerPrompt,
     llm,
